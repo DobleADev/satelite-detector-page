@@ -1,13 +1,14 @@
 // src/components/organisms/AsteroidDataFetcher/AsteroidDataFetcher.jsx
 
 import React, { useState, useEffect } from 'react';
-import { getAsteroidsByDate } from '../../../services/neoApi'; 
+import { getAsteroidsByDate } from '../../../services/neoApi';
 
 // Importa los componentes del Módulo 1
 import { Spinner } from '../../atoms/Spinner';
 import { AlertMessage } from '../../atoms/AlertMessage';
+import { Badge } from '../../atoms/Badge';
 // Importaremos Table en el Módulo 3, por ahora solo mostramos texto
-// import { Table } from '../Table'; 
+import { Table } from '../../molecules/Table'; 
 
 // Función de utilidad para obtener la fecha de hoy en formato YYYY-MM-DD
 const getTodayDate = () => {
@@ -18,6 +19,50 @@ const getTodayDate = () => {
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+
+// Dentro de AsteroidDataFetcher.jsx (Antes del componente funcional)
+
+// Helper para formatear números largos
+const formatNumber = (num) => new Intl.NumberFormat('es-DO', {
+    maximumFractionDigits: 0
+}).format(num);
+
+// Definición de las columnas de la tabla
+const ASTEROID_COLUMNS = [
+    {
+        header: 'Nombre',
+        accessor: 'name',
+        // Usamos el componente Badge que creamos para resaltar el nombre
+        formatter: (name, item) => (
+            <span className="font-semibold text-indigo-700">{name}</span>
+        )
+    },
+    {
+        header: 'Diámetro (m)',
+        accessor: 'diameterMeters',
+        formatter: (value) => value ? `${formatNumber(value)} m` : 'N/A'
+    },
+    {
+        header: 'Velocidad (km/h)',
+        accessor: 'velocity',
+        formatter: (value) => value ? `${formatNumber(parseFloat(value))} km/h` : 'N/A'
+    },
+    {
+        header: 'Peligro Potencial',
+        accessor: 'isPotentiallyHazardous',
+        // Usamos el Badge para visualizar el riesgo
+        formatter: (isHazardous) => (
+            <Badge color={isHazardous ? 'red' : 'green'}>
+                {isHazardous ? 'ALTO' : 'Bajo'}
+            </Badge>
+        )
+    },
+    {
+        header: 'Fecha de Aproximación',
+        accessor: 'closeApproachDate',
+        formatter: (date) => date || 'N/A'
+    },
+];
 
 const AsteroidDataFetcher = () => {
     // 1. Estados necesarios:
@@ -32,13 +77,13 @@ const AsteroidDataFetcher = () => {
             // 2.1. Resetear estados
             setLoading(true);
             setError(null);
-            
+
             const date = getTodayDate();
 
             try {
                 const data = await getAsteroidsByDate(date);
                 setAsteroids(data);
-                
+
             } catch (err) {
                 // 2.2. Capturar y establecer el mensaje de error
                 setError(err.message || "Ocurrió un error desconocido.");
@@ -49,9 +94,9 @@ const AsteroidDataFetcher = () => {
         };
 
         fetchAsteroidData();
-        
+
         // Dependencias vacías: solo se ejecuta una vez al montar el componente
-    }, []); 
+    }, []);
 
     // 3. Renderizado Condicional (Los 3 Estados)
 
@@ -76,22 +121,20 @@ const AsteroidDataFetcher = () => {
         );
     }
 
-    // 4. Estado de Éxito (Muestra la data, que luego será la Tabla)
+    // ... dentro de AsteroidDataFetcher.jsx, en el estado de éxito:
+
+    // 4. Estado de Éxito
     return (
         <div className="p-4">
-            <AlertMessage type="success" className="mb-4">
-                Datos cargados con éxito para la fecha: {getTodayDate()}. Se encontraron {asteroids.length} asteroides.
-            </AlertMessage>
-            
-            {/* Aquí es donde irá el Módulo 3 (La Tabla) */}
-            <h3 className="text-lg font-semibold mt-6">Datos Recibidos (Muestra temporal):</h3>
-            <pre className="bg-gray-800 text-white p-3 overflow-auto rounded-lg text-xs max-h-96">
-                {JSON.stringify(asteroids.slice(0, 3), null, 2)} {/* Mostramos solo los primeros 3 */}
-            </pre>
-            
-            {/* Si ya tuvieras el componente Table listo, sería así: 
-            <Table data={asteroids} columns={...} /> 
-            */}
+            {/* ... AlertMessage de éxito ... */}
+
+            <h3 className="text-xl font-semibold mb-4">Asteroides Cercanos a la Tierra ({asteroids.length})</h3>
+
+            {/* Renderizado de la tabla con los datos */}
+            <Table
+                columns={ASTEROID_COLUMNS}
+                data={asteroids}
+            />
         </div>
     );
 };
