@@ -1,37 +1,18 @@
 // src/components/organisms/AsteroidDataFetcher/AsteroidDataFetcher.jsx
 
-import React, { useState, useEffect } from 'react';
-import { getAsteroidsByDate } from '../../../services/neoApi';
+import React from 'react';
+import { useAsteroidData } from '../../../hooks/useAsteroidData'; // ¡Nuevo Hook!
 
-// Importa los componentes del Módulo 1
+// Importa los componentes de UI
 import { Spinner } from '../../atoms/Spinner';
 import { AlertMessage } from '../../atoms/AlertMessage';
 import { Input } from '../../atoms/Input';
 import { Badge } from '../../atoms/Badge';
-// Importaremos Table en el Módulo 3, por ahora solo mostramos texto
 import { Table } from '../../molecules/Table';
 import { Pagination } from '../../molecules/Pagination';
 
-const ITEMS_PER_PAGE = 10;
-
-// Función de utilidad para obtener la fecha de hoy en formato YYYY-MM-DD
-const getTodayDate = () => {
-    const d = new Date();
-    // Padding con '0' para asegurar el formato de dos dígitos
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
-// Dentro de AsteroidDataFetcher.jsx (Antes del componente funcional)
-
-// Helper para formatear números largos
-const formatNumber = (num) => new Intl.NumberFormat('es-DO', {
-    maximumFractionDigits: 0
-}).format(num);
-
-// Definición de las columnas de la tabla
+// ... (Las funciones formatNumber y las constantes ASTEROID_COLUMNS permanecen aquí)
+const formatNumber = (num) => new Intl.NumberFormat('es-DO', { maximumFractionDigits: 0 }).format(num);
 const ASTEROID_COLUMNS = [
     {
         header: 'Nombre',
@@ -69,47 +50,21 @@ const ASTEROID_COLUMNS = [
 ];
 
 const AsteroidDataFetcher = () => {
-    // 1. Estados necesarios:
-    const [asteroids, setAsteroids] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [searchTerm, setSearchTerm] = useState('');
+    // 1. Usar el Custom Hook: toda la lógica en una sola línea.
+    const { 
+        loading,
+        error,
+        paginatedData,
+        totalPages,
+        currentPage,
+        searchTerm,
+        filteredCount,
+        setSearchTerm,
+        handlePageChange,
+    } = useAsteroidData();
 
-    // 2. Lógica de Asincronía con useEffect
-    useEffect(() => {
-        // Definimos la función de fetch asíncrona dentro de useEffect
-        const fetchAsteroidData = async () => {
-            // 2.1. Resetear estados
-            setLoading(true);
-            setError(null);
 
-            const date = getTodayDate();
-
-            try {
-                const data = await getAsteroidsByDate(date);
-                setAsteroids(data);
-
-            } catch (err) {
-                // 2.2. Capturar y establecer el mensaje de error
-                setError(err.message || "Ocurrió un error desconocido.");
-            } finally {
-                // 2.3. Siempre detener la carga al final, sin importar el resultado
-                setLoading(false);
-            }
-        };
-
-        fetchAsteroidData();
-
-        // Dependencias vacías: solo se ejecuta una vez al montar el componente
-    }, []);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm]);
-
-    // 3. Renderizado Condicional (Los 3 Estados)
-
+    // 2. Renderizado Condicional de Estados (sin cambios)
     if (loading) {
         return (
             <div className="flex justify-center items-center py-10">
@@ -131,61 +86,33 @@ const AsteroidDataFetcher = () => {
         );
     }
 
-    // ************************************************************
-    // ** PASO 1: APLICAR FILTRADO (El PRIMER procesamiento)**
-    // ************************************************************
-    const filteredAsteroids = asteroids.filter(neo => {
-        if (!searchTerm) return true;
-        return neo.name.toLowerCase().includes(searchTerm.toLowerCase());
-    });
-
-
-    // ************************************************************
-    // ** PASO 2: APLICAR PAGINACIÓN sobre los datos FILTRADOS **
-    // ************************************************************
-
-    // 1. Calcular el total de páginas (USANDO filteredAsteroids.length)
-    const totalPages = Math.ceil(filteredAsteroids.length / ITEMS_PER_PAGE);
-
-    // 2. Definir los índices de inicio y fin para el slice
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-
-    // 3. Aplicar el slice (USANDO filteredAsteroids)
-    const paginatedData = filteredAsteroids.slice(startIndex, endIndex);
-
-
-    // ** NOTA: La función handlePageChange usa ahora la variable totalPages calculada arriba **
-    const handlePageChange = (page) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-
-    // 4. Estado de Éxito
+    // 3. Estado de Éxito (solo renderizado)
     return (
         <div className="p-4">
-            {/* Encabezado y Contador de Resultados */}
-            <h3 className="text-xl font-semibold mb-4">Asteroides Cercanos a la Tierra ({filteredAsteroids.length} resultados)</h3>
+            
+            <h3 className="text-xl font-semibold mb-4">
+                Asteroides Cercanos a la Tierra ({filteredCount} resultados)
+            </h3>
 
-            {/* Componente de Filtro (Átomo Input) */}
+            {/* Componente de Filtro */}
             <div className="mb-4 max-w-sm">
                 <Input
                     type="text"
                     placeholder="Filtrar por nombre..."
                     value={searchTerm}
+                    // La función de actualización viene directamente del hook
                     onChange={(e) => setSearchTerm(e.target.value)}
                 />
             </div>
 
-            {/* 1. La Tabla (Ahora usa los datos paginados) */}
+            {/* La Tabla */}
             <Table
                 columns={ASTEROID_COLUMNS}
-                data={paginatedData} // <-- ¡Usamos los datos paginados!
+                data={paginatedData} 
             />
 
-            {/* 2. El Componente de Paginación */}
-            {filteredAsteroids.length > 0 && (
+            {/* El Componente de Paginación */}
+            {filteredCount > 0 && (
                 <Pagination
                     currentPage={currentPage}
                     totalPages={totalPages}
